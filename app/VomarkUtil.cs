@@ -19,6 +19,7 @@ namespace vomark.app
         {
             public VomNode root = new();
             public VomNode term = new();
+            public readonly string graphLabel = graphLabel;
             public List<VomNode> nodes = [];
 
 
