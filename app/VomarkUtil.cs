@@ -1,16 +1,15 @@
-﻿/// TODO:
-///     Write text reader class
-///     Write tests for util and reader classes
-///     
-
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Runtime.Serialization;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using System.Xml;
 using static System.Net.Mime.MediaTypeNames;
 
 namespace vomark.app
@@ -37,22 +36,16 @@ namespace vomark.app
 
                 parent = parent ?? GetRoot();
 
-
                 VomEdge rel = new(parent, newNode);
-
-                //TODO: NOT ACCURATELY CHECKING IF NODE IS IN GRAPH
 
                 if (nodes.Contains(newNode))
                 {
-                    Debug.WriteLine($"DBG: Node {newNode.GetData()} exists in graph! (Parented by {parent.GetData() ?? "null!"})");
                     if (parent.GetAdjList().ContainsKey(rel))
                     {
-                        Debug.WriteLine($"DBG: Relationship detected!");
                         parent.GetAdjList()[rel] += weight;
                     }
                     else
                     {
-                        Debug.WriteLine($"DBG: In graph, no relationship detected between {parent.GetData()} and {newNode.GetData()}!");
                         parent.GetAdjList().Add(rel, weight);
                     }
 
@@ -61,7 +54,6 @@ namespace vomark.app
                 {
                     nodes.Add(newNode);
                     parent.GetAdjList().Add(rel, weight);
-                    Debug.WriteLine($"DBG: Adding node {newNode.GetData()} to graph! (Parented by {parent.GetData() ?? "null!"}");
                 }
             }
 
@@ -71,8 +63,12 @@ namespace vomark.app
                     throw new ArgumentException($"{data} is not a valid node");
             }
 
-            public string FormSentence(int maxLen, char punc, VomNode? start)
+            public string? FormSentence(int maxLen, char punc, VomNode? start)
             {
+                if(this == null)
+                {
+                    return null;
+                }
                 StringBuilder sentence = new();
                 start = start ?? root;
                 VomNode curr = start;
@@ -143,6 +139,24 @@ namespace vomark.app
             {
                 return graphLabel;
             }
+
+            public bool ToXMLFile(string path)
+            {
+                bool complete = false;
+                try
+                {
+                    using FileStream fs = File.Create(path + GetLabel() + ".xml");
+                    System.Xml.Serialization.XmlSerializer x = new(typeof(VomGraph));
+                    x.Serialize(fs, this);
+                }
+                catch (Exception e)
+                {
+                    Debug.WriteLine(e);
+                }
+                return complete;
+            }
+
+
 
             public class VomNode(string data = "", bool isTerm = false) : IEquatable<VomNode>
             {
@@ -258,14 +272,6 @@ namespace vomark.app
 
         public class VomarkReader
         {
-            /// TODO:
-            /// Process text input into nodes/edges using VomarkGraph
-            /// Clean text, removing punctuation and capitalization
-            /// Separate process for large text files?
-            ///     Assuming PWYK usage:
-            ///     Ensure that it can read/build quickly with smaller text chunks
-            ///     YoutubeDL C# for subtitle extraction? -- SEPARATE IDEA
-            ///     
             private enum STRING_TERMINAL { 
                 TERM_PD = '.',
                 TERM_EX = '!',
@@ -286,7 +292,7 @@ namespace vomark.app
                     {
                         txt = sr.ReadToEnd();
                     }
-                    txt = Regex.Replace(txt, "[//\\<>%$#@&*()]gm", " ").ToLower();
+                    txt = SanitizeText(txt);
                 }
                 catch (Exception e)
                 {
@@ -295,16 +301,15 @@ namespace vomark.app
                 return txt;
             }
 
-            public static VomGraph GraphFromString(string data, string graphName = "NewGraph", bool sanitized = false)
+            public static VomGraph? GraphFromString(string data, string graphName = "NewGraph", bool sanitized = false)
             {
                 if(!sanitized)
                 {
-                    data = Regex.Replace(data, "[//\\\\<>%$#@&*()]", " ").ToLower().Trim();
-                    Debug.WriteLine($"DBG: Sanitized data - {data}");
+                    data = SanitizeText(data);
                 }
                 try
                 {
-                    string[] words = data.Split(" ");
+                    string[] words = data.Split(' ');
                     HashSet<string> usedWords = [];
                     VomGraph vg = new(graphName);
                     VomGraph.VomNode parent = vg.GetRoot();
@@ -317,12 +322,10 @@ namespace vomark.app
                             isTerm = Enum.IsDefined(typeof(STRING_TERMINAL), (STRING_TERMINAL)word.Last<char>());
                             if (isTerm)
                             {
-                                Debug.WriteLine($"DBG: Node {word} is terminal!");
                                 inp = word.TrimEnd(word[word.Length - 1]);
                             }
                             VomGraph.VomNode curr = usedWords.Add(inp) ?
                                 new VomGraph.VomNode(inp, isTerm) : vg.FindNode(inp);
-                            //VomGraph.VomNode curr = new(inp, isTerm);
                             vg.AddNode(curr, parent);
                             if (isTerm)
                             {
@@ -341,10 +344,82 @@ namespace vomark.app
                 {
                     Console.Error.WriteLine(e.ToString());
                 }
-                return new(graphName);
+                return null;
             }
 
-            public static VomGraph GraphFromTxt(string path, string graphName = "NewGraph")
+            public static VomGraph? FromXML(string path)
+            {
+                try
+                {
+                System.Xml.Serialization.XmlSerializer x = new(typeof(VomGraph));
+                using StringReader xmlReader = new(path);
+                VomGraph vg = (VomGraph?)x.Deserialize(xmlReader) ??
+                    throw new InvalidOperationException();
+                return vg;
+                }
+                catch(Exception e)
+                {
+                    Debug.WriteLine(e.ToString());
+                }
+                return null;
+            }
+
+            private static string SanitizeText(string data)
+            {
+                return Regex.Replace(data, "[//\\\\<>%$#@&*()]", " ").ToLower().Trim();
+            }
+
+            //TODO: Test method and minimize repeated code where possible
+            public static bool AppendGraph(string data, VomGraph graph)
+            {
+                if(graph == null || data == null)
+                {
+                    return false;
+                }
+
+                data = SanitizeText(data);
+
+                try
+                {
+                    string[] words = data.Split(' ');
+                    HashSet<string> usedWords = new();
+                    VomGraph.VomNode parent = graph.GetRoot();
+                    bool isTerm = false;
+                    foreach (string word in words)
+                    {
+                        string inp = word;
+                        if (!string.IsNullOrWhiteSpace(word))
+                        {
+                            isTerm = Enum.IsDefined(typeof(STRING_TERMINAL), (STRING_TERMINAL)word.Last<char>());
+                            if (isTerm)
+                            {
+                                inp = word.TrimEnd(word[word.Length - 1]);
+                            }
+                            VomGraph.VomNode curr = usedWords.Add(inp) ?
+                                new VomGraph.VomNode(inp, isTerm) : graph.FindNode(inp);
+                            graph.AddNode(curr, parent);
+                            if (isTerm)
+                            {
+                                graph.AddNode(graph.GetTerm(), curr);
+                                parent = graph.GetRoot();
+                            }
+                            else
+                            {
+                                parent = curr;
+                            }
+                        }
+                    }
+                    return true;
+                }
+                catch (Exception e)
+                {
+                    Console.Error.WriteLine(e.ToString());
+                    return false;
+                }
+
+            }
+
+            public static VomGraph? GraphFromTxt(string path, string graphName = "NewGraph")
             {
                 string data = ReadTxt(path);
                 return GraphFromString(data, graphName, true);
