@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.VisualBasic;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -6,60 +7,73 @@ using System.Runtime.CompilerServices;
 using System.Runtime.Serialization;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Xml;
+using System.Xml.Linq;
+using System.Xml.Serialization;
 using static System.Net.Mime.MediaTypeNames;
+using static vomark.app.VomarkUtil.VomGraph;
 
 namespace vomark.app
 {
     public class VomarkUtil
     {
 
+        // TODO: UNDO ALL XML COMPONENTS, SWITCH TO JSON CONVERSION
+        [JsonConverter(typeof(GraphJsonConverter))]
         public class VomGraph
         {
-            private readonly VomNode root = new("__DBG__NULL__", false);
-            private readonly VomNode term = new("__DBG__TERM__", true);
-            private readonly string graphLabel;
+            public VomNode Root { get; set; } = new("__DBG__NULL__", false);
+            public VomNode Term {get; set;} = new("__DBG__TERM__", true);
+            public string Label { get; set; }
             public List<VomNode> nodes = [];
 
             public VomGraph(string graphLabel)
             {
-                this.graphLabel = graphLabel;
-                nodes.Add(GetRoot());
-                nodes.Add(GetTerm());
+                Label = graphLabel;
+                nodes.Add(Root);
+                nodes.Add(Term);
+            }
+
+            public VomGraph()
+            {
+                Label = "NewGraph";
+                nodes.Add(Root);
+                nodes.Add(Term);
             }
 
             public void AddNode(VomNode newNode, VomNode? parent = null, int weight = 1)
             {
 
-                parent = parent ?? GetRoot();
+                parent = parent ?? Root;
 
                 VomEdge rel = new(parent, newNode);
 
                 if (nodes.Contains(newNode))
                 {
-                    if (parent.GetAdjList().ContainsKey(rel))
+                    if (parent.AdjList.ContainsKey(rel))
                     {
-                        parent.GetAdjList()[rel] += weight;
+                        parent.AdjList[rel] += weight;
                     }
                     else
                     {
-                        parent.GetAdjList().Add(rel, weight);
+                        parent.AdjList.Add(rel, weight);
                     }
 
                 }
                 else
                 {
                     nodes.Add(newNode);
-                    parent.GetAdjList().Add(rel, weight);
+                    parent.AdjList.Add(rel, weight);
                 }
             }
 
             public VomNode FindNode(string data)
             {
-                return nodes.Find(x => x.GetData() == data) ?? 
+                return nodes.Find(x => x.Data == data) ?? 
                     throw new ArgumentException($"{data} is not a valid node");
             }
 
@@ -70,7 +84,7 @@ namespace vomark.app
                     return null;
                 }
                 StringBuilder sentence = new();
-                start = start ?? root;
+                start = start ?? Root;
                 VomNode curr = start;
                 int wordCount = 0;
                 try
@@ -78,11 +92,11 @@ namespace vomark.app
                     while (wordCount < maxLen)
                     {
                         curr = GetNextNode(curr);
-                        if (curr.Equals(GetTerm())) 
+                        if (curr.Equals(Term)) 
                         { 
                             break; 
                         }
-                        sentence.Append($"{curr.GetData()} ");
+                        sentence.Append($"{curr.Data} ");
                         ++wordCount;
                     }
                 }
@@ -98,20 +112,20 @@ namespace vomark.app
 
             public VomNode GetNextNode(VomNode curr)
             {
-                Dictionary<VomEdge, int> adj = curr.GetAdjList();
+                Dictionary<VomEdge, int> adj = curr.AdjList;
                 if(adj.Count <= 0)
                 {
-                    return GetTerm();
+                    return Term;
                 }
                 int weightSum = adj.Values.Sum();
-                return GetNextRand(adj, weightSum).GetEnd();
+                return GetNextRand(adj, weightSum).End;
             }
 
             private static VomEdge GetNextRand(Dictionary<VomEdge, int> adj, int weightSum)
             {
                 if(adj.Count <= 0)
                 {
-                    throw new NullReferenceException($"Node containing adjList is a terminal node."); ;
+                    throw new NullReferenceException($"Node containing AdjList is a terminal node."); ;
                 }
                 int randWeight = new Random().Next(weightSum);
                 foreach(VomEdge edge in adj.Keys)
@@ -125,147 +139,155 @@ namespace vomark.app
                 throw new ArgumentOutOfRangeException($"AdjList {adj} could not produce a result.");
             }
 
-            public VomNode GetRoot()
-            {
-                return root;
-            }
-
-            public VomNode GetTerm()
-            {
-                return term;
-            }
-
-            public string GetLabel()
-            {
-                return graphLabel;
-            }
-
-            public bool ToXMLFile(string path)
+            public bool ToJson(string folder, JsonSerializerOptions options)
             {
                 bool complete = false;
                 try
                 {
-                    using FileStream fs = File.Create(path + GetLabel() + ".xml");
-                    System.Xml.Serialization.XmlSerializer x = new(typeof(VomGraph));
-                    x.Serialize(fs, this);
+                    string data = JsonSerializer.Serialize(this, options);
+                    string dest = $"{folder}/{Label}.json";
+                    File.WriteAllText(dest, data);
+                    complete = true;
                 }
-                catch (Exception e)
+                catch(Exception e)
                 {
                     Debug.WriteLine(e);
                 }
+
                 return complete;
             }
 
-
-
-            public class VomNode(string data = "", bool isTerm = false) : IEquatable<VomNode>
+            [JsonConverter(typeof(NodeJsonConverter))]
+            public class VomNode : IEquatable<VomNode>
             {
-                private readonly string data = data;
-                private Dictionary<VomEdge, int> adjList = [];
-                private bool isTerm = isTerm;
+                public string Data { get; set; }
+                public bool IsTerm { get; set; }
+                public Dictionary<VomEdge, int> AdjList { get; set; } = [];
 
-                public Dictionary<VomEdge, int> GetAdjList()
+                public VomNode(string data = "NewNode", bool isTerm=false)
                 {
-                    return adjList;
+                    Data = data;
+                    IsTerm = isTerm;
+                }
+                public VomNode()
+                {
+                    Data = "NewNode";
+                    IsTerm = false;
                 }
 
-                public string GetData()
+                /// <summary>
+                /// Only used as JSON deserialization utility.
+                /// Will act weird around collisions in existing graph
+                /// </summary>
+                public bool AppendAdj(string data, int weight = 1)
                 {
-                    return data;
-                }
-
-                public bool GetIsTerm()
-                {
-                    return isTerm;
-                }
-
-                public void MakeTerm(bool state)
-                {
-                    isTerm = state;
+                    if(string.IsNullOrWhiteSpace(data))
+                    {
+                        return false;
+                    }
+                    VomNode nv = new(data);
+                    return AdjList.TryAdd(new(this, nv), weight);
                 }
                 
                 public override string ToString()
                 {
                     string res = (
-                        $"Data: {data}\n" +
+                        $"Data: {Data}\n" +
                         $"AdjList: \n"
                         );
-                    foreach(VomEdge edge in adjList.Keys)
+                    foreach(VomEdge edge in AdjList.Keys)
                     {
-                        res += $"\tData: {edge.GetEnd().data}\n\tWeight: {adjList[edge]}\n";
+                        res += $"\tData: {edge.End.Data}\n\tWeight: {AdjList[edge]}\n";
                     }
                     return res;
                 }
 
+                //// Formatting idea:
+                //// Start with data, create arr of each "next" word with edge followed by a weight int
+                //// The adjlist can be easily split by a pipe "|" into subarrays
+                //// Last char (which needs to be popped) marks the parent node as term
+                //public string JsonFormat()
+                //{
+                //    StringBuilder sb = new(Data);
+                //    foreach (VomEdge edge in AdjList.Keys)
+                //    {
+                //        sb.Append($"|{edge.End.Data}{AdjList[edge]}");
+                //    }
+                //    sb.Append(IsTerm ? "T" : "F");
+                //    return sb.ToString();
+                //}
+
                 public bool Equals(VomNode? obj)
                 {
                     obj = obj ?? new();
-                    return (data == obj.data);
+                    return (Data == obj.Data);
                 }
 
                 public override bool Equals(object? obj)
                 {
                     VomNode n = obj as VomNode ?? new VomNode();
-                        return (data == n.data);
+                        return (Data == n.Data);
                 }
 
                 public override int GetHashCode()
                 {
-                    return HashCode.Combine(data, adjList, isTerm);
+                    return HashCode.Combine(Data, AdjList, IsTerm);
                 }
 
                 public static bool operator==(VomNode n1, VomNode n2)
                 {
-                    return n1.data == n2.data;
+                    return n1.Data == n2.Data;
                 } 
 
                 public static bool operator!=(VomNode n1, VomNode n2)
                 {
-                    return n1.data != n2.data;
+                    return n1.Data != n2.Data;
                 }
 
             }
 
-            public class VomEdge(VomNode start, VomNode end) : IEquatable<VomEdge> 
+            public class VomEdge : IEquatable<VomEdge> 
             {
-                private readonly VomNode start = start;
-                private readonly VomNode end = end;
+                public VomNode Start { get; set; }
+                public VomNode End { get; set; }
 
-                public VomNode GetStart()
+                public VomEdge(VomNode start, VomNode end)
                 {
-                    return start;
+                    Start = start;
+                    End = end;
                 }
 
-                public VomNode GetEnd()
+                public VomEdge()
                 {
-                    return end;
+                    Start = new("DBG_EMPTY");
+                    End = new("DBG_EMPTY");
                 }
 
                 public bool Equals(VomEdge? obj)
                 {
                     obj = obj ?? this;
-                    return (start == obj.start && end == obj.end);
+                    return (Start == obj.Start && End == obj.End);
                 }
 
                 public override bool Equals(object? obj)
                 {
                     VomEdge e = obj as VomEdge ?? new VomEdge(new(), new());
-                    return (start == e.start && end == e.end);
+                    return (Start == e.Start && End == e.End);
                 }
 
                 public override int GetHashCode()
                 {
-                    return HashCode.Combine(start, end);
+                    return HashCode.Combine(Start, End);
                 }
 
                 public static bool operator ==(VomEdge e1, VomEdge e2)
                 {
-                    return (e1.start == e2.start && e1.end == e2.end);
+                    return (e1.Start == e2.Start && e1.End == e2.End);
                 }
 
                 public static bool operator !=(VomEdge e1, VomEdge e2)
                 {
-                    return !(e1.start == e2.start && e1.end == e2.end);
+                    return !(e1.Start == e2.Start && e1.End == e2.End);
                 }
             }
         }
@@ -312,7 +334,7 @@ namespace vomark.app
                     string[] words = data.Split(' ');
                     HashSet<string> usedWords = [];
                     VomGraph vg = new(graphName);
-                    VomGraph.VomNode parent = vg.GetRoot();
+                    VomNode parent = vg.Root;
                     bool isTerm = false;
                     foreach (string word in words)
                     {
@@ -324,13 +346,13 @@ namespace vomark.app
                             {
                                 inp = word.TrimEnd(word[word.Length - 1]);
                             }
-                            VomGraph.VomNode curr = usedWords.Add(inp) ?
-                                new VomGraph.VomNode(inp, isTerm) : vg.FindNode(inp);
+                            VomNode curr = usedWords.Add(inp) ?
+                                new VomNode(inp, isTerm) : vg.FindNode(inp);
                             vg.AddNode(curr, parent);
                             if (isTerm)
                             {
-                                vg.AddNode(vg.GetTerm(), curr);
-                                parent = vg.GetRoot();
+                                vg.AddNode(vg.Term, curr);
+                                parent = vg.Root;
                             }
                             else
                             {
@@ -343,23 +365,6 @@ namespace vomark.app
                 catch (Exception e)
                 {
                     Console.Error.WriteLine(e.ToString());
-                }
-                return null;
-            }
-
-            public static VomGraph? FromXML(string path)
-            {
-                try
-                {
-                System.Xml.Serialization.XmlSerializer x = new(typeof(VomGraph));
-                using StringReader xmlReader = new(path);
-                VomGraph vg = (VomGraph?)x.Deserialize(xmlReader) ??
-                    throw new InvalidOperationException();
-                return vg;
-                }
-                catch(Exception e)
-                {
-                    Debug.WriteLine(e.ToString());
                 }
                 return null;
             }
@@ -383,7 +388,7 @@ namespace vomark.app
                 {
                     string[] words = data.Split(' ');
                     HashSet<string> usedWords = new();
-                    VomGraph.VomNode parent = graph.GetRoot();
+                    VomNode parent = graph.Root;
                     bool isTerm = false;
                     foreach (string word in words)
                     {
@@ -395,13 +400,13 @@ namespace vomark.app
                             {
                                 inp = word.TrimEnd(word[word.Length - 1]);
                             }
-                            VomGraph.VomNode curr = usedWords.Add(inp) ?
-                                new VomGraph.VomNode(inp, isTerm) : graph.FindNode(inp);
+                            VomNode curr = usedWords.Add(inp) ?
+                                new VomNode(inp, isTerm) : graph.FindNode(inp);
                             graph.AddNode(curr, parent);
                             if (isTerm)
                             {
-                                graph.AddNode(graph.GetTerm(), curr);
-                                parent = graph.GetRoot();
+                                graph.AddNode(graph.Term, curr);
+                                parent = graph.Root;
                             }
                             else
                             {
@@ -424,6 +429,79 @@ namespace vomark.app
                 string data = ReadTxt(path);
                 return GraphFromString(data, graphName, true);
             }
+        }
+        
+    }
+
+    public class NodeJsonConverter : JsonConverter<VomNode>
+    {
+        public override VomNode? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            if(reader.TokenType == JsonTokenType.Null)
+            {
+                return null;
+            }
+            using JsonDocument doc = JsonDocument.ParseValue(ref reader); {
+                JsonElement root = doc.RootElement;
+                string data = root.GetProperty("data").GetString() ?? "ERR_EMPTY";
+                bool isTerm = root.GetProperty("isterm").GetBoolean();
+                VomNode vm = new(data, isTerm);
+                foreach(JsonElement js in root.GetProperty("adjlist").EnumerateArray())
+                {
+                    string next = js.GetProperty("next").GetString()
+                        ?? throw new FormatException("No next node found");
+                    int weight = js.GetProperty("weight").GetInt32();
+                    vm.AppendAdj(next, weight);
+                }
+                return vm;
+            }
+        }
+
+
+        public override void Write(Utf8JsonWriter writer, VomNode node, JsonSerializerOptions options)
+        {
+            writer.WriteStartObject("node");
+            writer.WriteString("data", node.Data);
+            writer.WriteBoolean("isterm", node.IsTerm);
+            writer.WriteStartArray("adjlist");
+            foreach(VomEdge edge in node.AdjList.Keys)
+            {
+                writer.WriteStartObject("edge");
+                writer.WriteString("next", edge.End.Data);
+                writer.WriteNumber("weight", node.AdjList[edge]);
+                writer.WriteEndObject();
+            }
+            writer.WriteEndArray();
+            writer.WriteEndObject();
+        }
+    }
+
+    public class GraphJsonConverter : JsonConverter<VomarkUtil.VomGraph>
+    {
+        public override VomarkUtil.VomGraph? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override void Write(Utf8JsonWriter writer, VomarkUtil.VomGraph graph, JsonSerializerOptions options)
+        {
+            writer.WriteStartObject("graph");
+            writer.WriteString("label", graph.Label);
+            writer.WriteStartObject("node_root");
+            writer.WriteString("data", graph.Root.Data);
+            writer.WriteBoolean("isterm", false);
+            writer.WriteEndObject();
+            writer.WriteStartObject("node_term");
+            writer.WriteString("data", graph.Term.Data);
+            writer.WriteBoolean("isterm", true);
+            writer.WriteEndObject();
+            writer.WriteStartArray("nodes");
+            foreach (VomNode node in graph.nodes)
+            {
+                JsonSerializer.Serialize(writer, node);
+            }
+            writer.WriteEndArray();
+            writer.WriteEndObject();
         }
     }
 }
