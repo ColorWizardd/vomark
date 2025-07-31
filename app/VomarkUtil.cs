@@ -48,11 +48,8 @@ namespace vomark.app
             {
                 list = list ?? Nodes;
                 parent = parent ?? Root;
-
                 VomEdge rel = new(parent, newNode);
-
                 //Debug.WriteLine($"EDGE: {parent.Data} to {newNode.Data}");
-
                 if (list.Contains(newNode))
                 {
                     //Debug.WriteLine($"Node {newNode.Data} is in graph list");
@@ -60,17 +57,30 @@ namespace vomark.app
                     {
                         parent.AdjList[rel] += weight;
                     }
-
                 }
                 else
                 {
                     //Debug.WriteLine($"Adding node {newNode.Data} to graph.");
                     list.Add(newNode);
-                    foreach(VomEdge edge in parent.AdjList.Keys)
-                    {
-                        //Debug.WriteLine($"{edge.Start.Data} --- {edge.End.Data}");
-                    }
+                    //foreach(VomEdge edge in parent.AdjList.Keys)
+                    //{
+                    //    //Debug.WriteLine($"{edge.Start.Data} --- {edge.End.Data}");
+                    //}
                    parent.AdjList.TryAdd(rel, weight);
+                }
+            }
+
+            public void AddJsonNode(Dictionary<string, VomNode> dict, VomNode newNode, VomNode? parent = null, int weight = 1)
+            {
+                parent = parent ?? Root;
+                VomEdge rel = new(parent, newNode);
+
+                if (!dict.TryAdd(newNode.Data, newNode))
+                {
+                    if (!parent.AdjList.TryAdd(rel, weight))
+                    {
+                        parent.AdjList[rel] += weight;
+                    }
                 }
             }
 
@@ -488,13 +498,6 @@ namespace vomark.app
         }
     }
 
-    /// Probably the least efficient solution, but I can't be bothered.
-    /// TODO: Look into generating each child as a node in the first pass?
-    /// Would still need to iterate at least twice:
-    ///     Once to generate all node objects
-    ///     Once to properly draw edges between node references
-    /// TODO: Test how poorly this scales with larger datasets
-
     public class GraphJsonConverter : JsonConverter<VomarkUtil.VomGraph>
     {
         public override VomarkUtil.VomGraph? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
@@ -508,30 +511,37 @@ namespace vomark.app
                 JsonElement root = doc.RootElement;
                 string label = root.GetProperty("label").GetString() ?? "ERR_NULL";
                 VomarkUtil.VomGraph vg = new(label, true);
-                List<VomNode> nodes = [];
+                //List<VomNode> nodes = [];
+                Dictionary<string, VomNode> nodes = [];
                 foreach(JsonElement js in root.GetProperty("nodes").EnumerateArray())
                 {
                     VomNode next = JsonSerializer.Deserialize<VomNode>(js)
                         ?? throw new FormatException("Cannot create node from data");
-                    nodes.Add(next);
+                    nodes.TryAdd(next.Data, next);
                 }
 
                 foreach(JsonElement js in root.GetProperty("nodes").EnumerateArray())
                 {
-                    VomNode? curr = nodes.Find(x => x.Data == js.GetProperty("data").GetString());
+                    //VomNode? curr = nodes.Find(js.GetProperty("data").GetString());
+                    string currData = js.GetProperty("data").GetString()
+                        ?? throw new FormatException("Could not extract node data from json");
+                    VomNode curr = nodes[currData];
                     foreach (JsonElement el in js.GetProperty("adjlist").EnumerateArray())
                     {
-                        VomNode child = nodes.Find(x => x.Data == el.GetProperty("next").GetString())
+                        string childData = el.GetProperty("next").GetString()
+                            ?? throw new FormatException("Could not extract node data from json (adjlist)"); ;
+                        VomNode child = nodes[childData]
                             ?? throw new FormatException("Cannot retrieve child node");
                         int weight = el.GetProperty("weight").GetInt32();
-                        vg.AddNode(child, curr, weight, nodes);
+                        //vg.AddNode(child, curr, weight, nodes.Values.ToList());
+                        vg.AddJsonNode(nodes, child, curr, weight);
                     }
                 }
 
-                vg.Nodes = nodes;
-                vg.Root = nodes.Find(x => x.Data == "__DBG__NULL__" )
+                vg.Nodes = nodes.Values.ToList();
+                vg.Root = nodes["__DBG__NULL__"]
                     ?? throw new FormatException("No root node present");
-                vg.Term = nodes.Find(x => x.Data == "__DBG__TERM__")
+                vg.Term = nodes["__DBG__TERM__"]
                     ?? throw new FormatException("No terminal node present");
                 //Debug.WriteLine("FINAL NODES");
                 //foreach(VomNode node in vg.Nodes)
