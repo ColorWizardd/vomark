@@ -1,9 +1,11 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
-VisualStudioVersion = 17.13.35931.197 d17.13
+VisualStudioVersion = 17.13.35931.197
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "vomark", "vomark.csproj", "{A273B1D8-6D28-43EB-89F5-7481DE7152BA}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "vomarktests", "..\vomarktests\vomarktests.csproj", "{C4D705DF-01A7-4A0E-A4FD-9955FF54B38B}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -15,6 +17,10 @@ Global
 		{A273B1D8-6D28-43EB-89F5-7481DE7152BA}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A273B1D8-6D28-43EB-89F5-7481DE7152BA}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A273B1D8-6D28-43EB-89F5-7481DE7152BA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C4D705DF-01A7-4A0E-A4FD-9955FF54B38B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C4D705DF-01A7-4A0E-A4FD-9955FF54B38B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C4D705DF-01A7-4A0E-A4FD-9955FF54B38B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C4D705DF-01A7-4A0E-A4FD-9955FF54B38B}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

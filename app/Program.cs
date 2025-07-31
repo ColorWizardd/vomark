@@ -1,2 +1,4 @@
-﻿// See https://aka.ms/new-console-template for more information
-Console.WriteLine("Hello, World!");
+﻿using static vomark.app.VomarkUtil;
+
+string content = "/This 'is <a> test!\\ This is two tests!";
+VomGraph ex = VomarkReader.GraphFromString(content, "StringTest");
