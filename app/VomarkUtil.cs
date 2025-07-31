@@ -1,5 +1,4 @@
-﻿using Microsoft.VisualBasic;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -10,11 +9,6 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
-using System.Xml;
-using System.Xml.Linq;
-using System.Xml.Serialization;
-using static System.Net.Mime.MediaTypeNames;
 using static vomark.app.VomarkUtil.VomGraph;
 
 namespace vomark.app
@@ -29,51 +23,60 @@ namespace vomark.app
             public VomNode Root { get; set; } = new("__DBG__NULL__", false);
             public VomNode Term {get; set;} = new("__DBG__TERM__", true);
             public string Label { get; set; }
-            public List<VomNode> nodes = [];
+            public List<VomNode> Nodes { get; set; } = [];
 
-            public VomGraph(string graphLabel)
+            public VomGraph(string graphLabel, bool fromJson = false)
             {
                 Label = graphLabel;
-                nodes.Add(Root);
-                nodes.Add(Term);
+                Nodes.Add(Root);
+                if(!fromJson)
+                {
+                    Nodes.Add(Term);
+                }
             }
 
             public VomGraph()
             {
                 Label = "NewGraph";
-                nodes.Add(Root);
-                nodes.Add(Term);
+                Nodes.Add(Root);
+                Nodes.Add(Term);
             }
 
-            public void AddNode(VomNode newNode, VomNode? parent = null, int weight = 1)
+            // List should only be used when deserializing JSON
+            // Required as a full nodelist cannot be referenced while deserializing.
+            public void AddNode(VomNode newNode, VomNode? parent = null, int weight = 1, List<VomNode>? list = null)
             {
-
+                list = list ?? Nodes;
                 parent = parent ?? Root;
 
                 VomEdge rel = new(parent, newNode);
 
-                if (nodes.Contains(newNode))
+                //Debug.WriteLine($"EDGE: {parent.Data} to {newNode.Data}");
+
+                if (list.Contains(newNode))
                 {
-                    if (parent.AdjList.ContainsKey(rel))
+                    //Debug.WriteLine($"Node {newNode.Data} is in graph list");
+                    if (!parent.AdjList.TryAdd(rel, weight))
                     {
                         parent.AdjList[rel] += weight;
-                    }
-                    else
-                    {
-                        parent.AdjList.Add(rel, weight);
                     }
 
                 }
                 else
                 {
-                    nodes.Add(newNode);
-                    parent.AdjList.Add(rel, weight);
+                    //Debug.WriteLine($"Adding node {newNode.Data} to graph.");
+                    list.Add(newNode);
+                    foreach(VomEdge edge in parent.AdjList.Keys)
+                    {
+                        //Debug.WriteLine($"{edge.Start.Data} --- {edge.End.Data}");
+                    }
+                   parent.AdjList.TryAdd(rel, weight);
                 }
             }
 
             public VomNode FindNode(string data)
             {
-                return nodes.Find(x => x.Data == data) ?? 
+                return Nodes.Find(x => x.Data == data) ?? 
                     throw new ArgumentException($"{data} is not a valid node");
             }
 
@@ -93,7 +96,8 @@ namespace vomark.app
                     {
                         curr = GetNextNode(curr);
                         if (curr.Equals(Term)) 
-                        { 
+                        {
+                            //Debug.WriteLine($"Node {curr.Data} is equal to {Term.Data} -- BREAKING");
                             break; 
                         }
                         sentence.Append($"{curr.Data} ");
@@ -102,7 +106,7 @@ namespace vomark.app
                 }
                 catch (Exception e)
                 {
-                    Console.WriteLine(e.Message);
+                    Debug.WriteLine(e.Message);
                 }
                 string res = sentence.ToString().Trim();
                 //DELETE
@@ -113,8 +117,10 @@ namespace vomark.app
             public VomNode GetNextNode(VomNode curr)
             {
                 Dictionary<VomEdge, int> adj = curr.AdjList;
+                //Debug.WriteLine("CURR NODE: \n" + curr.ToString());
                 if(adj.Count <= 0)
                 {
+                    //Debug.WriteLine("NEXT NODE - TERMINAL NODE REACHED");
                     return Term;
                 }
                 int weightSum = adj.Values.Sum();
@@ -164,7 +170,7 @@ namespace vomark.app
                 public bool IsTerm { get; set; }
                 public Dictionary<VomEdge, int> AdjList { get; set; } = [];
 
-                public VomNode(string data = "NewNode", bool isTerm=false)
+                public VomNode(string data = "NewNode", bool isTerm = false)
                 {
                     Data = data;
                     IsTerm = isTerm;
@@ -187,6 +193,11 @@ namespace vomark.app
                     }
                     VomNode nv = new(data);
                     return AdjList.TryAdd(new(this, nv), weight);
+                }
+
+                public bool AppendAdj(VomNode vm, int weight = 1)
+                {
+                    return AdjList.TryAdd(new(this, vm), weight);
                 }
                 
                 public override string ToString()
@@ -231,7 +242,7 @@ namespace vomark.app
 
                 public override int GetHashCode()
                 {
-                    return HashCode.Combine(Data, AdjList, IsTerm);
+                    return HashCode.Combine(Data);
                 }
 
                 public static bool operator==(VomNode n1, VomNode n2)
@@ -429,30 +440,31 @@ namespace vomark.app
                 string data = ReadTxt(path);
                 return GraphFromString(data, graphName, true);
             }
+
+            public static VomGraph? GraphFromJson(string path, string graphName)
+            {
+                string data = File.ReadAllText($"{path}/{graphName}.json");
+                return JsonSerializer.Deserialize<VomGraph>(data);
+            }
         }
         
     }
 
     public class NodeJsonConverter : JsonConverter<VomNode>
     {
+        // For consistency in object references, node adjlist should be handled in graph deserialization
         public override VomNode? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         {
             if(reader.TokenType == JsonTokenType.Null)
             {
                 return null;
             }
-            using JsonDocument doc = JsonDocument.ParseValue(ref reader); {
+            using JsonDocument doc = JsonDocument.ParseValue(ref reader); 
+            {
                 JsonElement root = doc.RootElement;
                 string data = root.GetProperty("data").GetString() ?? "ERR_EMPTY";
                 bool isTerm = root.GetProperty("isterm").GetBoolean();
                 VomNode vm = new(data, isTerm);
-                foreach(JsonElement js in root.GetProperty("adjlist").EnumerateArray())
-                {
-                    string next = js.GetProperty("next").GetString()
-                        ?? throw new FormatException("No next node found");
-                    int weight = js.GetProperty("weight").GetInt32();
-                    vm.AppendAdj(next, weight);
-                }
                 return vm;
             }
         }
@@ -460,13 +472,13 @@ namespace vomark.app
 
         public override void Write(Utf8JsonWriter writer, VomNode node, JsonSerializerOptions options)
         {
-            writer.WriteStartObject("node");
+            writer.WriteStartObject();
             writer.WriteString("data", node.Data);
             writer.WriteBoolean("isterm", node.IsTerm);
             writer.WriteStartArray("adjlist");
             foreach(VomEdge edge in node.AdjList.Keys)
             {
-                writer.WriteStartObject("edge");
+                writer.WriteStartObject();
                 writer.WriteString("next", edge.End.Data);
                 writer.WriteNumber("weight", node.AdjList[edge]);
                 writer.WriteEndObject();
@@ -476,27 +488,66 @@ namespace vomark.app
         }
     }
 
+    /// Probably the least efficient solution, but I can't be bothered.
+    /// TODO: Look into generating each child as a node in the first pass?
+    /// Would still need to iterate at least twice:
+    ///     Once to generate all node objects
+    ///     Once to properly draw edges between node references
+    /// TODO: Test how poorly this scales with larger datasets
+
     public class GraphJsonConverter : JsonConverter<VomarkUtil.VomGraph>
     {
         public override VomarkUtil.VomGraph? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         {
-            throw new NotImplementedException();
+            if (reader.TokenType == JsonTokenType.Null)
+            {
+                return null;
+            }
+            using JsonDocument doc = JsonDocument.ParseValue(ref reader);
+            {
+                JsonElement root = doc.RootElement;
+                string label = root.GetProperty("label").GetString() ?? "ERR_NULL";
+                VomarkUtil.VomGraph vg = new(label, true);
+                List<VomNode> nodes = [];
+                foreach(JsonElement js in root.GetProperty("nodes").EnumerateArray())
+                {
+                    VomNode next = JsonSerializer.Deserialize<VomNode>(js)
+                        ?? throw new FormatException("Cannot create node from data");
+                    nodes.Add(next);
+                }
+
+                foreach(JsonElement js in root.GetProperty("nodes").EnumerateArray())
+                {
+                    VomNode? curr = nodes.Find(x => x.Data == js.GetProperty("data").GetString());
+                    foreach (JsonElement el in js.GetProperty("adjlist").EnumerateArray())
+                    {
+                        VomNode child = nodes.Find(x => x.Data == el.GetProperty("next").GetString())
+                            ?? throw new FormatException("Cannot retrieve child node");
+                        int weight = el.GetProperty("weight").GetInt32();
+                        vg.AddNode(child, curr, weight, nodes);
+                    }
+                }
+
+                vg.Nodes = nodes;
+                vg.Root = nodes.Find(x => x.Data == "__DBG__NULL__" )
+                    ?? throw new FormatException("No root node present");
+                vg.Term = nodes.Find(x => x.Data == "__DBG__TERM__")
+                    ?? throw new FormatException("No terminal node present");
+                //Debug.WriteLine("FINAL NODES");
+                //foreach(VomNode node in vg.Nodes)
+                //{
+                //    Debug.WriteLine(node);
+                //}
+                return vg;
+            }
         }
 
         public override void Write(Utf8JsonWriter writer, VomarkUtil.VomGraph graph, JsonSerializerOptions options)
         {
-            writer.WriteStartObject("graph");
+            writer.WriteStartObject();
             writer.WriteString("label", graph.Label);
-            writer.WriteStartObject("node_root");
-            writer.WriteString("data", graph.Root.Data);
-            writer.WriteBoolean("isterm", false);
-            writer.WriteEndObject();
-            writer.WriteStartObject("node_term");
-            writer.WriteString("data", graph.Term.Data);
-            writer.WriteBoolean("isterm", true);
-            writer.WriteEndObject();
             writer.WriteStartArray("nodes");
-            foreach (VomNode node in graph.nodes)
+            foreach (VomNode node in graph.Nodes)
             {
                 JsonSerializer.Serialize(writer, node);
             }
