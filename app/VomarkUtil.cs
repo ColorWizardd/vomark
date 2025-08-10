@@ -7,7 +7,6 @@ using System.Runtime.Serialization;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Text.Json.Serialization.Metadata;
 using System.Text.RegularExpressions;
 using static vomark.app.VomarkUtil.VomGraph;
 
@@ -15,7 +14,6 @@ namespace vomark.app
 {
     public class VomarkUtil
     {
-
         // TODO: UNDO ALL XML COMPONENTS, SWITCH TO JSON CONVERSION
         [JsonConverter(typeof(GraphJsonConverter))]
         public class VomGraph
