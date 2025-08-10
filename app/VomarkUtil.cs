@@ -319,7 +319,7 @@ namespace vomark.app
                 TERM_QU = '?'
             }
 
-            private static string ReadTxt(string path)
+            public static string ReadTxt(string path)
             {
                 string txt = "";
                 try
