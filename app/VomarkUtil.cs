@@ -388,7 +388,7 @@ namespace vomark.app
                 return null;
             }
 
-            private static string SanitizeText(string data)
+            public static string SanitizeText(string data)
             {
                 return Regex.Replace(data, "[//\\\\<>%$#@&*()]", " ").ToLower().Trim();
             }
