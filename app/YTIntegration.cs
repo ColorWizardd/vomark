@@ -28,10 +28,11 @@ namespace vomark.app
 
         public static async Task<bool> SetupPackages(string path)
         {
+            string[] files = Directory.GetFiles(path);
             try
             {
-                await Utils.DownloadFFmpeg(path);
-                await Utils.DownloadYtDlp(path);
+                if (!files.Contains($"{path}\\yt-dlp.exe")) { await Utils.DownloadYtDlp(path); Debug.WriteLine("Downloaded yt-dlp!"); }
+                if (!files.Contains($"{path}\\ffmpeg.exe")) { await Utils.DownloadFFmpeg(path); Debug.WriteLine("Downloaded ffmpeg!"); }
                 return true;
             }
             catch (Exception e)
