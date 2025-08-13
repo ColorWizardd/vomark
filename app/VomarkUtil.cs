@@ -7,7 +7,6 @@ using System.Runtime.Serialization;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Text.Json.Serialization.Metadata;
 using System.Text.RegularExpressions;
 using static vomark.app.VomarkUtil.VomGraph;
 
@@ -15,7 +14,6 @@ namespace vomark.app
 {
     public class VomarkUtil
     {
-
         // TODO: UNDO ALL XML COMPONENTS, SWITCH TO JSON CONVERSION
         [JsonConverter(typeof(GraphJsonConverter))]
         public class VomGraph
@@ -321,7 +319,7 @@ namespace vomark.app
                 TERM_QU = '?'
             }
 
-            private static string ReadTxt(string path)
+            public static string ReadTxt(string path)
             {
                 string txt = "";
                 try
@@ -390,7 +388,7 @@ namespace vomark.app
                 return null;
             }
 
-            private static string SanitizeText(string data)
+            public static string SanitizeText(string data)
             {
                 return Regex.Replace(data, "[//\\\\<>%$#@&*()]", " ").ToLower().Trim();
             }

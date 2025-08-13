@@ -7,4 +7,19 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <PackageReference Include="System.Configuration.ConfigurationManager" Version="9.0.8" />
+    <PackageReference Include="YoutubeDLSharp" Version="1.1.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="packages\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="app\App.config">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>
