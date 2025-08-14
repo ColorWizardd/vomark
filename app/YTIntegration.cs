@@ -52,6 +52,19 @@ namespace vomark.app
             return text;
         }
 
+        public static async Task<string[]> FetchPlaylistSubtitles(YoutubeDL yt, string url)
+        {
+            List<string> text = [];
+            await yt.RunVideoPlaylistDownload(url, overrideOptions: subExtractOptions);
+            string[] files = Directory.GetFiles(yt.OutputFolder, "*.srt")
+                ?? throw new ArgumentException("No file found in default output folder");
+            foreach (string file in files)
+            {
+                text.Add(SRTParser.SRTToString(File.ReadAllText(file)));
+            }
+            return text.ToArray();
+        }
+
         public static async Task<bool> YTAppendGraph(YoutubeDL yt, string url, VomGraph vg)
         {
             bool complete = false;
@@ -59,6 +72,33 @@ namespace vomark.app
             {
             string data = await FetchSubtitles(yt, url);
             complete = VomarkReader.AppendGraph(data, vg);
+            }
+            catch (Exception e)
+            {
+                Debug.WriteLine(e.Message);
+            }
+            return complete;
+        }
+
+        // TODO: Test playlist graph formation
+        public static async Task<bool> YTPlaylistAppendGraph(YoutubeDL yt, string url, VomGraph vg)
+        {
+            bool complete = false;
+            try
+            {
+                string[] data = await FetchPlaylistSubtitles(yt, url);
+                List<Task> tasks = [];
+                foreach (string sub in data)
+                {
+                    tasks.Add(Task.Run(() =>
+                    {
+                        VomarkReader.AppendGraph(sub, vg);
+                    }));
+                }
+                // Not using WaitAll() because we shouldn't care about null subtitles when we can help it
+                // Only real exception is if not a single video in the playlist has subtitles
+                await Task.WhenAll();
+                complete = true;
             }
             catch (Exception e)
             {
