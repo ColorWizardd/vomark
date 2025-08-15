@@ -17,10 +17,4 @@
     <Folder Include="ytdir\out\" />
   </ItemGroup>
 
-  <ItemGroup>
-    <None Update="app\App.config">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-  </ItemGroup>
-
 </Project>

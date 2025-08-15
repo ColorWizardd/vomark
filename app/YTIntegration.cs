@@ -124,9 +124,10 @@ namespace vomark.app
                     
                     while (!string.IsNullOrWhiteSpace(lines[j]))
                     {
-
+                        Regex.Replace(lines[j], "(\\([^)]*\\))", "");
+                        Regex.Replace(lines[j], "(\\[[^)]*\\])", "");
                         // Assuming all SRT brackets are single-lined.
-                        if (lines[j].First() != '[') { parsedLines.Add(lines[j]); }
+                        if (lines[j].Trim().Length > 0) { parsedLines.Add(lines[j]); }
                         ++j;
                     }
                     // If the end of a block doesn't include punctuation, assume the entire file is auto-generated.
