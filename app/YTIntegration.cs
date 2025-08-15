@@ -60,7 +60,7 @@ namespace vomark.app
                 ?? throw new ArgumentException("No file found in default output folder");
             foreach (string file in files)
             {
-                text.Add(SRTParser.SRTToString(File.ReadAllText(file)));
+                text.Add(SRTParser.SRTToString(file));
             }
             return text.ToArray();
         }
@@ -87,17 +87,10 @@ namespace vomark.app
             try
             {
                 string[] data = await FetchPlaylistSubtitles(yt, url);
-                List<Task> tasks = [];
                 foreach (string sub in data)
                 {
-                    tasks.Add(Task.Run(() =>
-                    {
                         VomarkReader.AppendGraph(sub, vg);
-                    }));
                 }
-                // Not using WaitAll() because we shouldn't care about null subtitles when we can help it
-                // Only real exception is if not a single video in the playlist has subtitles
-                await Task.WhenAll();
                 complete = true;
             }
             catch (Exception e)
@@ -138,10 +131,10 @@ namespace vomark.app
                     }
                     // If the end of a block doesn't include punctuation, assume the entire file is auto-generated.
                     count = parsedLines.Count;
-                    Debug.WriteLine($"Output count: {count}");
+                    //Debug.WriteLine($"Output count: {count}");
                     if (count > oldCount && (isGenerated || !Char.IsPunctuation(parsedLines[count - 1].Last()))) 
                     {
-                        Debug.WriteLine($"Curr line {parsedLines[count - 1]} at idx {count - 1}");
+                        //Debug.WriteLine($"Curr line {parsedLines[count - 1]} at idx {count - 1}");
                         parsedLines[count - 1] += '.'; 
                         isGenerated = true; 
                     }
@@ -161,7 +154,6 @@ namespace vomark.app
             File.Delete(path);
             return VomarkReader.SanitizeText(String.Join(" ", lines));
         }
-
 
     }
 }
