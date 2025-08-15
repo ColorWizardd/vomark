@@ -44,11 +44,10 @@ namespace vomark.app
 
         public static async Task<string> FetchSubtitles(YoutubeDL yt, string url)
         {
-            string text = "";
             await yt.RunVideoDownload(url, overrideOptions: subExtractOptions);
             string file = Directory.GetFiles(yt.OutputFolder, "*.srt").FirstOrDefault()
                 ?? throw new ArgumentException("No file found in default output folder");
-            text = SRTParser.SRTToString(file);
+            string text = SRTParser.SRTToString(file);
             return text;
         }
 
