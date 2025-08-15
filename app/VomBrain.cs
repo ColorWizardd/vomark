@@ -1,7 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Collections.Specialized;
-using System.Configuration;
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
@@ -17,11 +15,13 @@ namespace vomark.app
     {
         public Dictionary<string, VomGraph> GraphList { get; set; }
         public VomContext Context { get; set; }
+        public VomSettings Settings { get; set; }
 
         public VomBrain()
         {
             GraphList = [];
             Context = new("__DBG_CONTEXT_DEFAULT__");
+            Settings = new VomSettings();
         }
 
         public void AddNewGraph(string label)
@@ -53,7 +53,8 @@ namespace vomark.app
             VomGraph vg = GraphList[label];
             string punc = Context.GetPunctuation();
             // TODO: Tests cannot pull from App.config?
-            int maxLen = Convert.ToInt32(ConfigurationManager.AppSettings["MaxSentenceLen"]);
+            //int maxLen = Convert.ToInt32(ConfigurationManager.AppSettings["MaxSentenceLen"]);
+            int maxLen = Settings.MaxSentenceLen;
             Debug.WriteLine($"MAXLEN: {maxLen}");
             string res = vg.FormSentence(maxLen, punc, null)
                 ?? throw new ArgumentException("Could not produce sentence from given graph.");
@@ -75,7 +76,9 @@ namespace vomark.app
 
         public async Task<bool> AddThoughtYt(string label, string url)
         {
-            string YtDir = ConfigurationManager.AppSettings.Get("YtOutPath") ?? "../ytdir";
+            //string YtDir = ConfigurationManager.AppSettings.Get("YtOutPath") ?? "../ytdir";
+            string YtDir = Settings.YtOutPath;
+            string lang = Settings.SubLang;
             YoutubeDL yt = new()
             {
                 YoutubeDLPath = $"{YtDir}/yt-dlp.exe",
@@ -83,12 +86,13 @@ namespace vomark.app
                 OutputFolder = $"{YtDir}/out"
             };
             VomGraph vg = GraphList[label];
-            return await YTAppendGraph(yt, url, vg);
+            return await YTAppendGraph(yt, url, vg, lang);
         }
 
         public async Task<bool> AddThoughtPlaylistYt(string label, string url)
         {
-            string YtDir = ConfigurationManager.AppSettings.Get("YtOutPath") ?? "../ytdir";
+            //string YtDir = ConfigurationManager.AppSettings.Get("YtOutPath") ?? "../ytdir";
+            string YtDir = Settings.YtOutPath;
             YoutubeDL yt = new()
             {
                 YoutubeDLPath = $"{YtDir}/yt-dlp.exe",
@@ -96,7 +100,7 @@ namespace vomark.app
                 OutputFolder = $"{YtDir}/out"
             };
             VomGraph vg = GraphList[label];
-            return await YTPlaylistAppendGraph(yt, url, vg);
+            return await YTPlaylistAppendGraph(yt, url, vg, "en");
         }
     }
 }

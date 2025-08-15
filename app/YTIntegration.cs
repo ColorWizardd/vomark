@@ -8,8 +8,6 @@ using System.Threading.Tasks;
 using YoutubeDLSharp;
 using YoutubeDLSharp.Options;
 using YoutubeDLSharp.Metadata;
-using System.Configuration;
-using System.Collections.Specialized;
 using static vomark.app.VomarkUtil;
 
 namespace vomark.app
@@ -17,14 +15,17 @@ namespace vomark.app
     public static class YTIntegration
     {
 
-        private readonly static OptionSet subExtractOptions = new()
+        public static OptionSet SubExtractOptions(string? lang)
         {
-            WriteSubs = true,
-            WriteAutoSubs = true,
-            SubLangs = ConfigurationManager.AppSettings.Get("SubLang") ?? "en",
-            SubFormat = "srt",
-            SkipDownload = true
-        };
+            return new()
+            {
+                WriteSubs = true,
+                WriteAutoSubs = true,
+                SubLangs = lang ?? "en",
+                SubFormat = "srt",
+                SkipDownload = true
+            };
+        }
 
         public static async Task<bool> SetupPackages(string path)
         {
@@ -42,19 +43,19 @@ namespace vomark.app
             }
         }
 
-        public static async Task<string> FetchSubtitles(YoutubeDL yt, string url)
+        public static async Task<string> FetchSubtitles(YoutubeDL yt, string url, string? lang)
         {
-            await yt.RunVideoDownload(url, overrideOptions: subExtractOptions);
+            await yt.RunVideoDownload(url, overrideOptions: SubExtractOptions(lang));
             string file = Directory.GetFiles(yt.OutputFolder, "*.srt").FirstOrDefault()
                 ?? throw new ArgumentException("No file found in default output folder");
             string text = SRTParser.SRTToString(file);
             return text;
         }
 
-        public static async Task<string[]> FetchPlaylistSubtitles(YoutubeDL yt, string url)
+        public static async Task<string[]> FetchPlaylistSubtitles(YoutubeDL yt, string url, string? lang)
         {
             List<string> text = [];
-            await yt.RunVideoPlaylistDownload(url, overrideOptions: subExtractOptions);
+            await yt.RunVideoPlaylistDownload(url, overrideOptions: SubExtractOptions(lang));
             string[] files = Directory.GetFiles(yt.OutputFolder, "*.srt")
                 ?? throw new ArgumentException("No file found in default output folder");
             foreach (string file in files)
@@ -64,12 +65,12 @@ namespace vomark.app
             return text.ToArray();
         }
 
-        public static async Task<bool> YTAppendGraph(YoutubeDL yt, string url, VomGraph vg)
+        public static async Task<bool> YTAppendGraph(YoutubeDL yt, string url, VomGraph vg, string? lang)
         {
             bool complete = false;
             try
             {
-            string data = await FetchSubtitles(yt, url);
+            string data = await FetchSubtitles(yt, url, lang);
             complete = VomarkReader.AppendGraph(data, vg);
             }
             catch (Exception e)
@@ -80,12 +81,12 @@ namespace vomark.app
         }
 
         // TODO: Test playlist graph formation
-        public static async Task<bool> YTPlaylistAppendGraph(YoutubeDL yt, string url, VomGraph vg)
+        public static async Task<bool> YTPlaylistAppendGraph(YoutubeDL yt, string url, VomGraph vg, string? lang)
         {
             bool complete = false;
             try
             {
-                string[] data = await FetchPlaylistSubtitles(yt, url);
+                string[] data = await FetchPlaylistSubtitles(yt, url, lang);
                 foreach (string sub in data)
                 {
                         VomarkReader.AppendGraph(sub, vg);
