@@ -8,8 +8,6 @@ using System.Threading.Tasks;
 using YoutubeDLSharp;
 using YoutubeDLSharp.Options;
 using YoutubeDLSharp.Metadata;
-using System.Configuration;
-using System.Collections.Specialized;
 using static vomark.app.VomarkUtil;
 
 namespace vomark.app
@@ -17,14 +15,17 @@ namespace vomark.app
     public static class YTIntegration
     {
 
-        private readonly static OptionSet subExtractOptions = new()
+        public static OptionSet SubExtractOptions(string? lang)
         {
-            WriteSubs = true,
-            WriteAutoSubs = true,
-            SubLangs = ConfigurationManager.AppSettings.Get("SubLang") ?? "en",
-            SubFormat = "srt",
-            SkipDownload = true
-        };
+            return new()
+            {
+                WriteSubs = true,
+                WriteAutoSubs = true,
+                SubLangs = lang ?? "en",
+                SubFormat = "srt",
+                SkipDownload = true
+            };
+        }
 
         public static async Task<bool> SetupPackages(string path)
         {
@@ -42,23 +43,55 @@ namespace vomark.app
             }
         }
 
-        public static async Task<string> FetchSubtitles(YoutubeDL yt, string url)
+        public static async Task<string> FetchSubtitles(YoutubeDL yt, string url, string? lang)
         {
-            string text = "";
-            await yt.RunVideoDownload(url, overrideOptions: subExtractOptions);
+            await yt.RunVideoDownload(url, overrideOptions: SubExtractOptions(lang));
             string file = Directory.GetFiles(yt.OutputFolder, "*.srt").FirstOrDefault()
                 ?? throw new ArgumentException("No file found in default output folder");
-            text = SRTParser.SRTToString(file);
+            string text = SRTParser.SRTToString(file);
             return text;
         }
 
-        public static async Task<bool> YTAppendGraph(YoutubeDL yt, string url, VomGraph vg)
+        public static async Task<string[]> FetchPlaylistSubtitles(YoutubeDL yt, string url, string? lang)
+        {
+            List<string> text = [];
+            await yt.RunVideoPlaylistDownload(url, overrideOptions: SubExtractOptions(lang));
+            string[] files = Directory.GetFiles(yt.OutputFolder, "*.srt")
+                ?? throw new ArgumentException("No file found in default output folder");
+            foreach (string file in files)
+            {
+                text.Add(SRTParser.SRTToString(file));
+            }
+            return text.ToArray();
+        }
+
+        public static async Task<bool> YTAppendGraph(YoutubeDL yt, string url, VomGraph vg, string? lang)
         {
             bool complete = false;
             try
             {
-            string data = await FetchSubtitles(yt, url);
+            string data = await FetchSubtitles(yt, url, lang);
             complete = VomarkReader.AppendGraph(data, vg);
+            }
+            catch (Exception e)
+            {
+                Debug.WriteLine(e.Message);
+            }
+            return complete;
+        }
+
+        // TODO: Test playlist graph formation
+        public static async Task<bool> YTPlaylistAppendGraph(YoutubeDL yt, string url, VomGraph vg, string? lang)
+        {
+            bool complete = false;
+            try
+            {
+                string[] data = await FetchPlaylistSubtitles(yt, url, lang);
+                foreach (string sub in data)
+                {
+                        VomarkReader.AppendGraph(sub, vg);
+                }
+                complete = true;
             }
             catch (Exception e)
             {
@@ -91,17 +124,18 @@ namespace vomark.app
                     
                     while (!string.IsNullOrWhiteSpace(lines[j]))
                     {
-
+                        Regex.Replace(lines[j], "(\\([^)]*\\))", "");
+                        Regex.Replace(lines[j], "(\\[[^)]*\\])", "");
                         // Assuming all SRT brackets are single-lined.
-                        if (lines[j].First() != '[') { parsedLines.Add(lines[j]); }
+                        if (lines[j].Trim().Length > 0) { parsedLines.Add(lines[j]); }
                         ++j;
                     }
                     // If the end of a block doesn't include punctuation, assume the entire file is auto-generated.
                     count = parsedLines.Count;
-                    Debug.WriteLine($"Output count: {count}");
+                    //Debug.WriteLine($"Output count: {count}");
                     if (count > oldCount && (isGenerated || !Char.IsPunctuation(parsedLines[count - 1].Last()))) 
                     {
-                        Debug.WriteLine($"Curr line {parsedLines[count - 1]} at idx {count - 1}");
+                        //Debug.WriteLine($"Curr line {parsedLines[count - 1]} at idx {count - 1}");
                         parsedLines[count - 1] += '.'; 
                         isGenerated = true; 
                     }
@@ -121,7 +155,6 @@ namespace vomark.app
             File.Delete(path);
             return VomarkReader.SanitizeText(String.Join(" ", lines));
         }
-
 
     }
 }

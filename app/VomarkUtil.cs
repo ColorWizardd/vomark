@@ -88,7 +88,7 @@ namespace vomark.app
                     throw new ArgumentException($"{data} is not a valid node");
             }
 
-            public string? FormSentence(int maxLen, char punc, VomNode? start)
+            public string? FormSentence(int maxLen, string punc, VomNode? start)
             {
                 if(this == null)
                 {
