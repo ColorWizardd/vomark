@@ -1,5 +1,6 @@
 # vomark
-A markov-chain based random sentence generator library.
+A markov-chain based random sentence generator library. Create a "brain" that you can feed a vocabulary and reproduce sentences!
+**NOTE**: This is **NOT** an LLM, and does not use any other data than what you specifically answer. It literally only uses the words you give it and reproduces patterns given a vocabulary.
 ### Features
 - Each entity comprises of a **VomBrain**, **VomContext**, and **VomSettings**.
 	- A VomBrain maps a label to a weighted graph representing an associated vocabulary.
