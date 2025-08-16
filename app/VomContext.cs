@@ -18,7 +18,7 @@ namespace vomark.app
         public int PunctuationFlag { get; set; }
         public int CapitalizationFlag { get; set; }
 
-        public VomContext(string label,  int puncFlag = (int)Punctuation.PERIOD, int capFlag = (int)Capitalization.SMALL_CAPS) 
+        public VomContext(string label,  int puncFlag = (int)Punctuation.PERIOD, int capFlag = (int)Capitalization.SMALLCAPS) 
         { 
             Label = label;
             PunctuationFlag = puncFlag;
@@ -31,14 +31,14 @@ namespace vomark.app
             PERIOD = 1,
             QUEST = 2,
             EXC = 4,
-            TRIP_EXC = 8
+            TRIPEXC = 8
         }
         [Flags]
         public enum Capitalization
         {
-            SMALL_CAPS = 1,
-            FIRST_CAP = 2,
-            ALL_CAPS = 4,
+            SMALLCAPS = 1,
+            FIRSTCAP = 2,
+            ALLCAPS = 4,
         }
 
         // Probably the "easiest" way to stack punctuation
@@ -49,16 +49,16 @@ namespace vomark.app
             sb.Append(((int)Punctuation.PERIOD & PunctuationFlag) == (int)Punctuation.PERIOD ? '.' : "");
             sb.Append(((int)Punctuation.QUEST & PunctuationFlag) == (int)Punctuation.QUEST ? '?' : "");
             sb.Append(((int)Punctuation.EXC & PunctuationFlag) == (int)Punctuation.EXC ? '!' : "");
-            sb.Append(((int)Punctuation.TRIP_EXC & PunctuationFlag) == (int)Punctuation.TRIP_EXC ? "!!!" : "");
+            sb.Append(((int)Punctuation.TRIPEXC & PunctuationFlag) == (int)Punctuation.TRIPEXC ? "!!!" : "");
             return sb.ToString();
         }
 
         public string ApplyCapitalization(string inp)
         {
-            inp = ((int)Capitalization.SMALL_CAPS & CapitalizationFlag) == (int)Capitalization.SMALL_CAPS ? inp.ToLower() : inp;
-            inp = ((int)Capitalization.FIRST_CAP & CapitalizationFlag) == (int)Capitalization.FIRST_CAP ? 
-                (char.ToUpper(inp[0]) + inp.Substring(1)) : inp;
-            inp = ((int)Capitalization.ALL_CAPS & CapitalizationFlag) == (int)Capitalization.ALL_CAPS ? inp.ToUpper() : inp;
+            inp = ((int)Capitalization.SMALLCAPS & CapitalizationFlag) == (int)Capitalization.SMALLCAPS ? inp.ToLowerInvariant() : inp;
+            inp = ((int)Capitalization.FIRSTCAP & CapitalizationFlag) == (int)Capitalization.FIRSTCAP ? 
+                (char.ToUpperInvariant(inp[0]) + inp.Substring(1)) : inp;
+            inp = ((int)Capitalization.ALLCAPS & CapitalizationFlag) == (int)Capitalization.ALLCAPS ? inp.ToUpperInvariant() : inp;
             return inp;
         }
 
