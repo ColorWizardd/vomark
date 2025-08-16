@@ -9,7 +9,7 @@ A markov-chain based random sentence generator library.
 ### Installation
 Vomark can be installed as a NuGet package:
 `Install-Package vomark`
-YouTube integration features are dependent on [https://github.com/Bluegrams/YoutubeDLSharp](YoutubeDLSharp), and conversely require [https://github.com/yt-dlp/yt-dlp](yt-dlp) and [https://ffmpeg.org/download.html](ffmpeg).
+YouTube integration features are dependent on [YoutubeDLSharp](https://github.com/Bluegrams/YoutubeDLSharp), and conversely require [yt-dlp](https://github.com/yt-dlp/yt-dlp) and [ffmpeg](https://ffmpeg.org/download.html).
 Both packages can be installed within the library by running the following:
 ```csharp
 bool success = await YTIntegration.SetupPackages(path);
