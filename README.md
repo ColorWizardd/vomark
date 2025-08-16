@@ -65,4 +65,4 @@ await vb.AddThoughtYt("example", "example_url_");
 Tests are currently stored in a separate project, but will be added shortly.
 
 ### License
-This project is licensed under the [BSD-3 Claude License](..\LICENSE.txt)
+This project is licensed under the [BSD-3 Claude License](LICENSE.txt)
