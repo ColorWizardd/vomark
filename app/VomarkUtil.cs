@@ -139,7 +139,7 @@ namespace vomark.app
             {
                 if(adj.Count <= 0)
                 {
-                    throw new NullReferenceException($"Node containing AdjList is a terminal node."); ;
+                    throw new ArgumentException($"Node containing AdjList is a terminal node."); ;
                 }
                 int randWeight = new Random().Next(weightSum);
                 foreach(VomEdge edge in adj.Keys)
@@ -390,7 +390,7 @@ namespace vomark.app
 
             public static string SanitizeText(string data)
             {
-                return Regex.Replace(data, "[//\\\\<>%$#@&*()]", " ").ToLower().Trim();
+                return Regex.Replace(data, "[//\\\\<>%$#@&*()]", " ").ToLowerInvariant().Trim();
             }
 
             //TODO: Test method and minimize repeated code where possible
