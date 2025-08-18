@@ -13,6 +13,12 @@
     <PackageTags>sentence generation;markov chain;</PackageTags>
     <AnalysisLevel>latest-recommended</AnalysisLevel>
     <AssemblyName>vomark</AssemblyName>
+    <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+    <Description>A markov-chain based sentence generation library.</Description>
+    <Copyright>ColorWizardd 2025</Copyright>
+    <RepositoryUrl>https://github.com/ColorWizardd/vomark</RepositoryUrl>
+    <PackageOutputPath>release</PackageOutputPath>
+    <PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
   </PropertyGroup>
 
   <ItemGroup>
@@ -21,11 +27,16 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Folder Include="release\" />
     <Folder Include="packages\" />
     <Folder Include="ytdir\out\" />
   </ItemGroup>
 
   <ItemGroup>
+    <None Update="LICENSE.txt">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
     <None Update="README.md">
       <Pack>True</Pack>
       <PackagePath>\</PackagePath>
