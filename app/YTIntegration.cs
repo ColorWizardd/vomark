@@ -126,6 +126,7 @@ namespace vomark.app
                     {
                         Regex.Replace(lines[j], "(\\([^)]*\\))", "");
                         Regex.Replace(lines[j], "(\\[[^)]*\\])", "");
+                        Regex.Replace(lines[j], "(\\<[^)]*\\>)", "");
                         // Assuming all SRT brackets are single-lined.
                         if (lines[j].Trim().Length > 0) { parsedLines.Add(lines[j]); }
                         ++j;
