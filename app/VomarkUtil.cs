@@ -82,10 +82,9 @@ namespace vomark.app
                 }
             }
 
-            public VomNode FindNode(string data)
+            public VomNode? FindNode(string data)
             {
-                return Nodes.Find(x => x.Data == data) ?? 
-                    throw new ArgumentException($"{data} is not a valid node");
+                return Nodes.Find(x => x.Data == data);
             }
 
             public string? FormSentence(int maxLen, string punc, VomNode? start)
@@ -142,9 +141,10 @@ namespace vomark.app
                     throw new ArgumentException($"Node containing AdjList is a terminal node."); ;
                 }
                 int randWeight = new Random().Next(weightSum);
+                //Debug.WriteLine($"NEXT RAND: {randWeight}");
                 foreach(VomEdge edge in adj.Keys)
                 {
-                    if(adj[edge] >= randWeight)
+                    if(adj[edge] > randWeight)
                     {
                         return edge;
                     }
@@ -365,9 +365,19 @@ namespace vomark.app
                             {
                                 inp = word.TrimEnd(word[word.Length - 1]);
                             }
-                            VomNode curr = usedWords.Add(inp) ?
-                                new VomNode(inp, isTerm) : vg.FindNode(inp);
-                            vg.AddNode(curr, parent);
+                            //VomNode curr = usedWords.Add(inp) ?
+                            //    new VomNode(inp, isTerm) : vg.FindNode(inp);
+                            VomNode curr;
+                            if (usedWords.Add(inp))
+                            {
+                                curr = new VomNode(inp, isTerm);
+                            }
+                            else
+                            {
+                                curr = vg.FindNode(inp)
+                                    ?? throw new ArgumentException("Could not add word to graph from string.");
+                            }
+                                vg.AddNode(curr, parent);
                             if (isTerm)
                             {
                                 vg.AddNode(vg.Term, curr);
@@ -406,12 +416,13 @@ namespace vomark.app
                 try
                 {
                     string[] words = data.Split(' ');
-                    HashSet<string> usedWords = new();
+                    //List<VomNode> usedWords = graph.Nodes ?? [];
                     VomNode parent = graph.Root;
                     bool isTerm = false;
                     foreach (string word in words)
                     {
                         string inp = word;
+                        //Debug.WriteLine($"Adding word {inp} to parent {parent.Data}");
                         if (!string.IsNullOrWhiteSpace(word))
                         {
                             isTerm = Enum.IsDefined(typeof(STRING_TERMINAL), (STRING_TERMINAL)word.Last<char>());
@@ -419,8 +430,8 @@ namespace vomark.app
                             {
                                 inp = word.TrimEnd(word[word.Length - 1]);
                             }
-                            VomNode curr = usedWords.Add(inp) ?
-                                new VomNode(inp, isTerm) : graph.FindNode(inp);
+                            VomNode curr = graph.FindNode(inp) ??
+                                new VomNode(inp, isTerm);
                             graph.AddNode(curr, parent);
                             if (isTerm)
                             {
